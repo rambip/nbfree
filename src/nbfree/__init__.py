@@ -159,7 +159,11 @@ def process_file_pair(stem, py_dir: Path, nb_dir: Path, ep):
     py_hash = nb_from_py.compute_hash()
 
     # Determine what changed and which is authoritative
-    if ref_hash == nb_hash == py_hash:
+    if ref_hash is None:
+        # Python file has no hash, it's considered more up-to-date
+        print(f"{stem}.py -> {stem}.ipynb")
+        return nb_from_py
+    elif ref_hash == nb_hash == py_hash:
         # No changes - either is fine
         return nb
     elif ref_hash == py_hash and ref_hash != nb_hash:
