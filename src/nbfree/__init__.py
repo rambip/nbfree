@@ -172,8 +172,7 @@ def process_file_pair(stem, py_dir: Path, nb_dir: Path, ep):
         return nb_from_py
     else:
         # Both changed independently - notebook is authoritative by default
-        print(f"Conflict in {stem}: both files changed independently (using notebook)")
-        return nb
+        exit(f"Conflict in {stem}. Both {py_path} and {nb_exists} changed independently. Please remove one of them.")
 
 
 def main():
