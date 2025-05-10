@@ -1,0 +1,15 @@
+[project]
+name = "nbfree"
+version = "0.1.1"
+description = "Edit your jupyter notebook cells as a python file, synchronize back and forth, and be free from the ipynb hell."
+readme = "README.md"
+authors = [{ name = "rambip", email = "apero1808@gmail.com" }]
+requires-python = ">=3.9"
+dependencies = ["dotenv>=0.9.9", "nbconvert>=7.16.6", "nbformat>=5.10.4"]
+
+[project.scripts]
+nbfree = "nbfree:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
