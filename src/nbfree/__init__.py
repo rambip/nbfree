@@ -34,7 +34,7 @@ class NotebookFile:
         for raw_cell in raw_cells:
             if raw_cell.startswith('"""') and raw_cell.endswith('"""'):
                 # Remove only the triple quotes at the beginning and end
-                content = raw_cell[3:-3]
+                content = raw_cell[3:-3].strip()
                 cell = {
                     "cell_type": "markdown",
                     "metadata": {},
@@ -83,7 +83,7 @@ class NotebookFile:
         chunks = []
         for cell in self.nb_data["cells"]:
             if cell["cell_type"] == "markdown":
-                chunks.append(f'"""\n{"".join(cell["source"])}\n"""')
+                chunks.append(f'"""\n{"".join(cell["source"])}\n"""'.strip())
             elif cell["cell_type"] == "code":
                 chunks.append("".join(cell["source"]))
 

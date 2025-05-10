@@ -1,6 +1,6 @@
 [project]
 name = "nbfree"
-version = "0.2.2"
+version = "0.2.3"
 description = "Edit your jupyter notebook cells as a python file, synchronize back and forth, and be free from the ipynb hell."
 readme = "README.md"
 authors = [{ name = "rambip", email = "apero1808@gmail.com" }]
