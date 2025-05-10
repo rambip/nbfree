@@ -2,6 +2,9 @@ name: Publish to Pypi
 
 on: push
 
+permissions:
+  id-token: write
+
 jobs:
   uv-example:
     name: python
