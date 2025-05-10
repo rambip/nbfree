@@ -10,7 +10,7 @@ from nbconvert.preprocessors import ExecutePreprocessor
 import nbformat
 from nbformat import NotebookNode
 from dotenv import load_dotenv
-from os import environ, error
+from os import environ
 from sys import exit
 
 
@@ -70,15 +70,15 @@ class NotebookFile:
 
         return NotebookFile(path, nb_data)  # type: ignore
 
-    def write(self, ep: ExecutePreprocessor):
-        ep.preprocess(self.nb_data, km=ep.km)
+    def execute(self, ep):
+        ep.preprocess(self.nb_data)
+
+    def write(self):
         with open(self.path, "w", encoding="utf-8") as f:
             json.dump(self.nb_data, f, indent=2)
 
-    def write_to_py(self, hash):
+    def write_to_py(self, path: Path, hash):
         """Convert notebook to Python file format"""
-        py_path = self.path.parent / f"{self.path.stem}.py"
-
         # Generate Python content from notebook cells
         chunks = []
         for cell in self.nb_data["cells"]:
@@ -87,7 +87,7 @@ class NotebookFile:
             elif cell["cell_type"] == "code":
                 chunks.append("".join(cell["source"]))
 
-        with open(py_path, "w", encoding="utf-8") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(HASH_PREFIX)
             f.write(hash + "\n")
             f.write("\n# %%\n".join(chunks))
@@ -135,18 +135,18 @@ def process_file_pair(stem, py_dir: Path, nb_dir: Path, ep):
     # Case: Only notebook exists
     if not py_exists and nb_exists:
         nb = load_notebook(nb_path)
-        print(f"{stem}.ipynb -> {stem}.py")
+        print(f"{nb_path} -> {py_path}")
         return nb
 
     # Case: Only Python file exists
     if not nb_exists and py_exists:
         hash_val, chunks = load_python_file(py_path)
-        new_nb_path = py_path.parent / f"{stem}.ipynb"
-        nb = NotebookFile.from_code_cells(new_nb_path, chunks)
-        print(f"{stem}.py -> {stem}.ipynb")
+        nb = NotebookFile.from_code_cells(nb_path, chunks)
+        print(f"{py_path} -> {nb_path}")
+        nb.execute(ep)
         return nb
 
-    assert(nb_exists and py_exists)
+    assert nb_exists and py_exists
 
     # Both files exist - determine which is authoritative
     ref_hash, chunks = load_python_file(py_path)
@@ -160,38 +160,47 @@ def process_file_pair(stem, py_dir: Path, nb_dir: Path, ep):
 
     # Determine what changed and which is authoritative
     if ref_hash is None:
-        # Python file has no hash, it's considered more up-to-date
-        print(f"{stem}.py -> {stem}.ipynb")
-        return nb_from_py
+        exit(
+            f"File {py_path} exists but has not been created by this script."
+            f"Please remove either {py_path} or {nb_path}"
+            f"Hint: this script adds a special line `# %% NOTEBOOK_HASH='...'` at the start of the py file. Please don't remove it at the start of the py file. Please don't remove it."
+        )
     elif ref_hash == nb_hash == py_hash:
         # No changes - either is fine
         return nb
     elif ref_hash == py_hash and ref_hash != nb_hash:
         # Notebook changed - notebook is authoritative
-        print(f"{stem}.ipynb -> {stem}.py")
         return nb
+        print(f"{nb_path} -> {py_path}")
     elif ref_hash == nb_hash and ref_hash != py_hash:
         # Python file changed - Python file is authoritative
-        print(f"{stem}.py -> {stem}.ipynb")
+        nb_from_py.execute(ep)
+        print(f"{py_path} -> {nb_path}")
         return nb_from_py
     else:
         # Both changed independently - notebook is authoritative by default
-        exit(f"Conflict in {stem}. Both {py_path} and {nb_exists} changed independently. Please remove one of them.")
+        exit(
+            f"Conflict for {stem}. Both {py_path} and {nb_exists} changed independently. Please remove one of them."
+        )
 
 
 def main():
     load_dotenv()
     """Convert all files that need conversion"""
     # Check for required environment variables
-    if 'SCRIPT_DIR' in environ:
+    if "SCRIPT_DIR" in environ:
         PY_DIR = Path(environ["SCRIPT_DIR"])
     else:
-        exit(f"Error: SCRIPT_DIR environment variable not found. Please add it to the `.env` file in {Path().cwd()}")
+        exit(
+            f"Error: SCRIPT_DIR environment variable not found. Please add it to the `.env` file in {Path().cwd()}"
+        )
         return
-    if 'NOTEBOOK_DIR' in environ:
+    if "NOTEBOOK_DIR" in environ:
         NB_DIR = Path(environ["NOTEBOOK_DIR"])
     else:
-        exit(f"Error: NOTEBOOK_DIR environment variable not found. Please add it to the `.env` file in {Path().cwd()}")
+        exit(
+            f"Error: NOTEBOOK_DIR environment variable not found. Please add it to the `.env` file in {Path().cwd()}"
+        )
         return
 
     # Find all Python and notebook files
@@ -208,9 +217,10 @@ def main():
 
         # Write both files from the authoritative source
         if nb:
-            nb.write(ep)
+            nb.write()
             hash_val = nb.compute_hash()
-            nb.write_to_py(hash_val)
+            py_path = PY_DIR / f"{stem}.py"
+            nb.write_to_py(py_path, hash_val)
 
 
 if __name__ == "__main__":
